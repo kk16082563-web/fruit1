@@ -1,0 +1,400 @@
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fruity AI - Fruit Classifier</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+<style>
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Arial', sans-serif;
+  background: linear-gradient(135deg, #eaf6ff, #d5ecff);
+  min-height: 100vh;
+  color: #356b9c;
+  padding: 25px 15px;
+}
+
+.container {
+  max-width: 650px;
+  margin: auto;
+}
+
+header {
+  text-align: center;
+  padding: 25px 10px;
+}
+
+header h1 {
+  font-size: clamp(35px, 8vw, 50px);
+  color: #328bd0;
+  font-weight: 900;
+}
+
+header p {
+  margin-top: 10px;
+  color: #6a9fc8;
+}
+
+.fruits {
+  font-size: 35px;
+  margin-top: 15px;
+  letter-spacing: 8px;
+}
+
+.card {
+  background: white;
+  border-radius: 25px;
+  padding: 25px;
+  box-shadow: 0 10px 30px #8bbde533;
+  margin-bottom: 20px;
+}
+
+h2 {
+  font-size: 20px;
+  margin-bottom: 15px;
+  color: #3889c7;
+}
+
+.upload-area {
+  border: 2px dashed #9bcdf1;
+  border-radius: 20px;
+  padding: 30px 15px;
+  text-align: center;
+  background: #f5fbff;
+  cursor: pointer;
+  transition: .2s;
+}
+
+.upload-area:hover {
+  background: #e9f5ff;
+}
+
+.upload-icon {
+  font-size: 55px;
+  margin-bottom: 12px;
+}
+
+.upload-area p {
+  color: #80a9c9;
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+input[type=file] {
+  display: none;
+}
+
+button {
+  border: none;
+  border-radius: 15px;
+  padding: 14px 25px;
+  background: #55a8e8;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 15px;
+  transition: .2s;
+}
+
+button:hover {
+  background: #318ed5;
+}
+
+button:disabled {
+  background: #b7d5ed;
+  cursor: not-allowed;
+}
+
+#preview {
+  display: none;
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  border-radius: 18px;
+  margin-top: 20px;
+  background: #edf7ff;
+}
+
+#status {
+  text-align: center;
+  margin-top: 15px;
+  color: #679ac0;
+  font-size: 14px;
+}
+
+#results {
+  display: none;
+}
+
+.result-item {
+  margin: 15px 0;
+}
+
+.result-name {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-weight: bold;
+  margin-bottom: 7px;
+  font-size: 14px;
+}
+
+.bar-bg {
+  height: 12px;
+  border-radius: 20px;
+  background: #e6f2fc;
+  overflow: hidden;
+}
+
+.bar {
+  height: 100%;
+  background: linear-gradient(90deg, #78c4f4, #398ed3);
+  border-radius: 20px;
+  transition: width .5s;
+}
+
+.best-result {
+  text-align: center;
+  background: #eaf6ff;
+  padding: 20px;
+  border-radius: 20px;
+  margin-bottom: 20px;
+}
+
+.best-result .fruit {
+  font-size: 45px;
+}
+
+.best-result h3 {
+  font-size: 25px;
+  color: #328bd0;
+  margin: 8px 0;
+}
+
+footer {
+  text-align: center;
+  color: #80a9c9;
+  font-size: 13px;
+  padding: 15px;
+}
+
+@media(max-width:480px) {
+  body { padding: 12px; }
+  .card { padding: 18px; }
+  .upload-area { padding: 25px 10px; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<header>
+  <h1>🫐 Fruity AI</h1>
+  <p>ค้นหาผลไม้ของคุณด้วยเทคโนโลยี AI</p>
+  <div class="fruits">🍓 🍇 🍒 🫐</div>
+</header>
+
+<div class="card">
+  <h2>📸 อัปโหลดรูปภาพผลไม้</h2>
+
+  <label class="upload-area" for="imageInput">
+    <div class="upload-icon">🖼️</div>
+    <strong>กดเพื่อเลือกรูปภาพ</strong>
+    <p>รองรับ JPG, PNG และ WEBP</p>
+    <p>เลือกภาพจากโทรศัพท์หรือคอมพิวเตอร์</p>
+  </label>
+
+  <input
+    type="file"
+    id="imageInput"
+    accept="image/*"
+  >
+
+  <img id="preview" alt="ภาพผลไม้ที่อัปโหลด">
+
+  <button id="predictBtn" disabled>
+    ✨ วิเคราะห์ผลไม้
+  </button>
+
+  <p id="status">กรุณาเลือกรูปภาพที่ต้องการวิเคราะห์</p>
+</div>
+
+<div class="card" id="results">
+
+  <h2>💙 ผลการวิเคราะห์</h2>
+
+  <div class="best-result">
+    <div class="fruit">🫐</div>
+    <p>ผลไม้ที่ AI ตรวจพบคือ</p>
+    <h3 id="bestName">-</h3>
+    <strong id="bestPercent">0%</strong>
+    <p>ระดับความมั่นใจ</p>
+  </div>
+
+  <h2>📊 ผลการจำแนกทั้งหมด</h2>
+  <div id="label-container"></div>
+
+</div>
+
+<footer>
+  💙 Fruity AI - Discover Your Fruit 💙
+</footer>
+
+</div>
+
+<script>
+const URL = "./my_model/";
+
+let model;
+let selectedImage = null;
+
+const imageInput = document.getElementById("imageInput");
+const preview = document.getElementById("preview");
+const predictBtn = document.getElementById("predictBtn");
+const statusText = document.getElementById("status");
+const results = document.getElementById("results");
+
+async function loadModel() {
+  if (model) return true;
+
+  statusText.textContent = "กำลังโหลดระบบ AI...";
+
+  try {
+    model = await tmImage.load(
+      URL + "model.json",
+      URL + "metadata.json"
+    );
+    return true;
+  } catch (error) {
+    statusText.textContent =
+      "โหลดโมเดลไม่สำเร็จ กรุณาตรวจสอบโฟลเดอร์ my_model";
+    console.error(error);
+    return false;
+  }
+}
+
+imageInput.addEventListener("change", function(event) {
+  const file = event.target.files[0];
+
+  if (!file) return;
+
+  if (!file.type.startsWith("image/")) {
+    statusText.textContent = "กรุณาเลือกไฟล์รูปภาพ";
+    return;
+  }
+
+  if (selectedImage) {
+    URL.revokeObjectURL(selectedImage);
+  }
+
+  selectedImage = URL.createObjectURL(file);
+
+  preview.onload = () => {
+    predictBtn.disabled = false;
+    results.style.display = "none";
+    statusText.textContent = "เลือกรูปภาพเรียบร้อยแล้ว 💙";
+  };
+
+  preview.onerror = () => {
+    statusText.textContent = "ไม่สามารถเปิดรูปภาพนี้ได้";
+    predictBtn.disabled = true;
+  };
+
+  preview.src = selectedImage;
+  preview.style.display = "block";
+});
+
+predictBtn.addEventListener("click", async function() {
+
+  predictBtn.disabled = true;
+  results.style.display = "none";
+
+  const loaded = await loadModel();
+
+  if (!loaded) {
+    predictBtn.disabled = false;
+    return;
+  }
+
+  try {
+    statusText.textContent = "AI กำลังวิเคราะห์รูปภาพ... ✨";
+
+    const prediction = await model.predict(preview);
+
+    prediction.sort((a, b) =>
+      b.probability - a.probability
+    );
+
+    const best = prediction[0];
+
+    document.getElementById("bestName").textContent =
+      best.className;
+
+    document.getElementById("bestPercent").textContent =
+      (best.probability * 100).toFixed(1) + "%";
+
+    const labelContainer =
+      document.getElementById("label-container");
+
+    labelContainer.innerHTML = "";
+
+    prediction.forEach(item => {
+
+      const percent =
+        (item.probability * 100).toFixed(1);
+
+      const div = document.createElement("div");
+      div.className = "result-item";
+
+      const name = document.createElement("div");
+      name.className = "result-name";
+
+      const className = document.createElement("span");
+      className.textContent = item.className;
+
+      const value = document.createElement("span");
+      value.textContent = percent + "%";
+
+      name.append(className, value);
+
+      const bg = document.createElement("div");
+      bg.className = "bar-bg";
+
+      const bar = document.createElement("div");
+      bar.className = "bar";
+      bar.style.width = percent + "%";
+
+      bg.appendChild(bar);
+      div.append(name, bg);
+      labelContainer.appendChild(div);
+    });
+
+    results.style.display = "block";
+
+    statusText.textContent = "วิเคราะห์เสร็จเรียบร้อยแล้ว 💙";
+
+  } catch (error) {
+    console.error(error);
+    statusText.textContent = "เกิดข้อผิดพลาดในการวิเคราะห์";
+  }
+
+  predictBtn.disabled = false;
+});
+</script>
+
+</body>
+</html>
